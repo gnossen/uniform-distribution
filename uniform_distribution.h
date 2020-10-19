@@ -8,25 +8,6 @@ namespace gnossen {
 namespace uniform_distribution {
 
 namespace internal {
-  template <typename Container>
-  float score(const Container& container) {
-    float sum = 0;
-    size_t length = std::size(container);
-    if (length < 3) {
-      return 0.0;
-    }
-    auto previous = container.begin();
-    auto current = previous + 1;
-    auto next = current + 1;
-    for (size_t i = 1; i < std::size(container) - 1; ++i) {
-      sum += fabs(*next + *previous - 2 * *current);
-      ++previous;
-      ++next;
-      ++current;
-    }
-    return sum;
-  }
-
   class Combinations {
   public:
     Combinations(size_t collection_size, size_t selection_size) :
@@ -168,6 +149,26 @@ namespace internal {
     size_t selection_size_;
   };
 }
+
+template <typename Container>
+float score(const Container& container) {
+  float sum = 0;
+  size_t length = std::size(container);
+  if (length < 3) {
+    return 0.0;
+  }
+  auto previous = container.begin();
+  auto current = previous + 1;
+  auto next = current + 1;
+  for (size_t i = 1; i < std::size(container) - 1; ++i) {
+    sum += fabs(*next + *previous - 2 * *current);
+    ++previous;
+    ++next;
+    ++current;
+  }
+  return sum;
+}
+
 
 template <typename T>
 class OutputContainer {
@@ -313,9 +314,9 @@ prune_uniform_exhaustive(const T& input, size_t output_size) {
         std::back_inserter(to_remove),
         [] (size_t i) -> size_t { return i + 1; });
     auto candidate = OutputContainer<T>(&input, to_remove);
-    float score = internal::score(candidate);
-    if (score < best_score) {
-      best_score = score;
+    float current_score = score(candidate);
+    if (current_score < best_score) {
+      best_score = current_score;
       best_combination = to_remove;
     }
   }

@@ -78,9 +78,9 @@ TEST(UniformDistributionTest, CombinationIDontTrustThisThing) {
 
 TEST(UniformDistributionTest, Score) {
   std::vector<float> l = {1.0, 2.0, 4.0};
-  EXPECT_EQ(internal::score(l), 1.0);
+  EXPECT_EQ(score(l), 1.0);
   l = {1.0, 2.0, 3.0, 4.0};
-  EXPECT_EQ(internal::score(l), 0.0);
+  EXPECT_EQ(score(l), 0.0);
 }
 
 std::vector<float> run_exhaustive(const std::vector<float>& input, size_t m) {
