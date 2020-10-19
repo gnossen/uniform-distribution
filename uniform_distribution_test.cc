@@ -2,6 +2,7 @@
 #include "gmock/gmock.h"
 
 #include <list>
+#include <set>
 #include <vector>
 
 #include "uniform_distribution.h"
@@ -20,6 +21,23 @@ TEST(UniformDistributionTest, OutputIteratorSunnyDay) {
     actual_output.push_back(value);
   }
   EXPECT_THAT(actual_output, ::testing::ContainerEq(expected_output));
+}
+
+TEST(UniformDistributionTest, CombinationsSunnyDay) {
+  std::set<std::list<size_t>> expected_combinations = {
+    std::list<size_t> {0, 1},
+    std::list<size_t> {0, 2},
+    std::list<size_t> {1, 0},
+    std::list<size_t> {1, 2},
+    std::list<size_t> {2, 0},
+    std::list<size_t> {2, 1},
+  };
+  std::set<std::list<size_t>> actual_combinations;
+  auto combinations = internal::Combinations(3, 2);
+  for (auto combination : combinations) {
+    actual_combinations.insert(combination);
+  }
+  EXPECT_THAT(actual_combinations, ::testing::ContainerEq(expected_combinations));
 }
 
 }

@@ -6,28 +6,143 @@
 namespace gnossen {
 namespace uniform_distribution {
 
-// namespace internal {
-//   template <typename Container>
-//   unsigned int score(const Container& container, size_t length) {
-//     // TODO: Implement.
-//   }
-// 
-//   class Combinations {
-//     Combinations(size_t collection_size, size_t selection_size) :
-//       collection_size_(collection_size),
-//       selection_size_(selection_size) {}
-// 
-//     class Iterator {
-// 
-//     };
-// 
-//     Iterator cbegin() const {}
-//     Iterator cend() const {}
-// 
-//   private:
-// 
-//   };
-// }
+namespace internal {
+  // template <typename Container>
+  // unsigned int score(const Container& container, size_t length) {
+  //   // TODO: Implement.
+  // }
+
+  class Combinations {
+  public:
+    Combinations(size_t collection_size, size_t selection_size) :
+      collection_size_(collection_size),
+      selection_size_(selection_size) {}
+
+    class Iterator {
+    public:
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = std::list<size_t>;
+      using difference_type = ptrdiff_t;
+      using pointer = const value_type*;
+      using reference = const value_type&;
+
+      Iterator(const Combinations* container) :
+        container_(container),
+        combination_(),
+        end_(false)
+      {
+        for (unsigned int i = 0;
+             i <= container_->collection_size_ - container_->selection_size_;
+             ++i)
+        {
+          combination_.push_back(i);
+        }
+      }
+
+      Iterator(const Combinations* container, bool) :
+        container_(container),
+        combination_(),
+        end_(true)
+      {}
+
+      bool update_last() {
+        std::cerr << "Update last: ";
+        print_combination();
+        std::cerr << std::endl << std::flush;
+        size_t last = combination_.back();
+        combination_.pop_back();
+        size_t next = get_next(last + 1);
+        if (next == std::numeric_limits<size_t>::max()) {
+          return false;
+        } else {
+          combination_.push_back(next);
+          return true;
+        }
+      }
+
+      bool push_new() {
+        print_combination();
+        size_t next = get_next(0);
+        if (next == std::numeric_limits<size_t>::max()) {
+          return false;
+        } else {
+          combination_.push_back(next);
+          return true;
+        }
+      }
+
+      inline bool full() const {
+        return combination_.size() == container_->selection_size_;
+      }
+
+      Iterator& operator++() {
+        while (!update_last()) {
+          if (combination_.size() == 0) {
+            end_ = true;
+            return *this;
+          }
+        }
+        while (!full()) { push_new(); }
+        return *this;
+      }
+
+      inline value_type operator*() {
+        return combination_;
+      }
+
+      inline bool operator==(const Iterator& other) const {
+        return container_ == other.container_ && (end_ == other.end_ || combination_ == other.combination_);
+      }
+
+      inline bool operator!=(const Iterator& other) const {
+        return !(this->operator==(other));
+      }
+
+    private:
+
+      // TODO: This could probably be better if we used an unordered_set.
+      // Returns the next number at least as high as `i` that isn't.
+      // already represented in the current combination. If no such number
+      // exists, then returns std::numeric_limits<size_t>::max().
+      inline size_t get_next(size_t i) const {
+        for (auto element : combination_) {
+          if (element == i)
+            ++i;
+        }
+        if (i == container_->collection_size_) {
+          return std::numeric_limits<size_t>::max();
+        }
+        return i;
+      }
+
+      const Combinations* container_;
+      std::list<size_t> combination_;
+      bool end_;
+    };
+
+    friend class Iterator;
+
+    Iterator cbegin() const {
+      return Iterator(this);
+    }
+
+    Iterator begin() const {
+      return cbegin();
+    }
+
+    Iterator cend() const {
+      return Iterator(this, true);
+    }
+
+    Iterator end() const {
+      return cend();
+    }
+
+  private:
+    size_t collection_size_;
+    size_t selection_size_;
+  };
+}
 
 template <typename T>
 class OutputContainer {
