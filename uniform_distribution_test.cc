@@ -40,4 +40,11 @@ TEST(UniformDistributionTest, CombinationsSunnyDay) {
   EXPECT_THAT(actual_combinations, ::testing::ContainerEq(expected_combinations));
 }
 
+TEST(UniformDistributionTest, Score) {
+  std::vector<float> l = {1.0, 2.0, 4.0};
+  EXPECT_EQ(internal::score(l, l.size()), 1.0);
+  l = {1.0, 2.0, 3.0, 4.0};
+  EXPECT_EQ(internal::score(l, l.size()), 0.0);
+}
+
 }

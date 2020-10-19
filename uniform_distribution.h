@@ -7,10 +7,14 @@ namespace gnossen {
 namespace uniform_distribution {
 
 namespace internal {
-  // template <typename Container>
-  // unsigned int score(const Container& container, size_t length) {
-  //   // TODO: Implement.
-  // }
+  template <typename Container>
+  unsigned int score(const Container& container, size_t length) {
+    unsigned int sum = 0;
+    for (size_t i = 1; i < length - 1; ++i) {
+      sum += container[i + 1] + container[i - 1] - 2 * container[i];
+    }
+    return sum;
+  }
 
   class Combinations {
   public:
@@ -46,9 +50,6 @@ namespace internal {
       {}
 
       bool update_last() {
-        std::cerr << "Update last: ";
-        print_combination();
-        std::cerr << std::endl << std::flush;
         size_t last = combination_.back();
         combination_.pop_back();
         size_t next = get_next(last + 1);
@@ -61,7 +62,6 @@ namespace internal {
       }
 
       bool push_new() {
-        print_combination();
         size_t next = get_next(0);
         if (next == std::numeric_limits<size_t>::max()) {
           return false;
@@ -270,7 +270,14 @@ bool operator==(const OutputContainer<T> self, const Container& other) {
 //   size_t length = std::size(input);
 //   std::list<size_t> best_combination;
 //   unsigned int best_score = std::numeric_limits<unsigned int>::max;
-//   for (const std::list<size_t>& to_remove : internal::Combinations(length, output_size)) {
+//   for (const std::list<size_t>& combination : internal::Combinations(length - 2, output_size)) {
+//     // NOTE: We can't remove the first or the last, so we get combinations on
+//     // the range [0, length - 2) and then add 1 to get the proper index range:
+//     // [1, length - 1).
+//     const std::list<size_t> to_remove;
+//     std::transform(combination.cbegin(), combination.cend(),
+//         std::back_inserter(to_remove),
+//         [] (size_t i) -> size_t { return i + 1; });
 //     unsigned int score = internal::score(OutputContainer<T>(&input, to_remove, length), length);
 //     if (score < best_score) {
 //       best_score = score;
