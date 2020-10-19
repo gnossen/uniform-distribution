@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iterator>
 #include <list>
 #include <limits>
@@ -8,10 +9,20 @@ namespace uniform_distribution {
 
 namespace internal {
   template <typename Container>
-  unsigned int score(const Container& container, size_t length) {
-    unsigned int sum = 0;
-    for (size_t i = 1; i < length - 1; ++i) {
-      sum += container[i + 1] + container[i - 1] - 2 * container[i];
+  float score(const Container& container) {
+    float sum = 0;
+    size_t length = std::size(container);
+    if (length < 3) {
+      return 0.0;
+    }
+    auto previous = container.begin();
+    auto current = previous + 1;
+    auto next = current + 1;
+    for (size_t i = 1; i < std::size(container) - 1; ++i) {
+      sum += fabs(*next + *previous - 2 * *current);
+      ++previous;
+      ++next;
+      ++current;
     }
     return sum;
   }
@@ -36,7 +47,7 @@ namespace internal {
         end_(false)
       {
         for (unsigned int i = 0;
-             i <= container_->collection_size_ - container_->selection_size_;
+             i < container_->selection_size_;
              ++i)
         {
           combination_.push_back(i);
@@ -49,6 +60,10 @@ namespace internal {
         end_(true)
       {}
 
+      // Attempts to increment the entry in the last position to the next
+      // higest possible selection. If successful, returns true. If
+      // unsuccessful returns false and the combination is one element shorter
+      // than it was before the method was called.
       bool update_last() {
         size_t last = combination_.back();
         combination_.pop_back();
@@ -61,28 +76,38 @@ namespace internal {
         }
       }
 
-      bool push_new() {
-        size_t next = get_next(0);
-        if (next == std::numeric_limits<size_t>::max()) {
-          return false;
-        } else {
-          combination_.push_back(next);
-          return true;
-        }
-      }
-
       inline bool full() const {
         return combination_.size() == container_->selection_size_;
       }
 
-      Iterator& operator++() {
-        while (!update_last()) {
-          if (combination_.size() == 0) {
-            end_ = true;
-            return *this;
+      // Attempts to fill the combination until it has the appropriate number
+      // of entries. If it reaches a situation in which a valid combination is
+      // no longer possible strictly by adding entries, returns false.
+      // Otherwise, returns true.
+      bool fill_to_leaf() {
+        while (!full()) {
+          size_t last = combination_.back();
+          size_t next = get_next(last + 1);
+          if (next == std::numeric_limits<size_t>::max()) {
+            return false;
           }
+          combination_.push_back(next);
         }
-        while (!full()) { push_new(); }
+        return true;
+      }
+
+      Iterator& operator++() {
+        do {
+          while (!update_last()) {
+            if (combination_.size() == 0) {
+              end_ = true;
+              return *this;
+            }
+          }
+          if (!fill_to_leaf()) {
+            continue;
+          }
+        } while(!full());
         return *this;
       }
 
@@ -208,6 +233,10 @@ public:
       return !(this->operator==(other));
     }
 
+    Iterator operator+(size_t offset) const {
+      return Iterator(container_, base_position_ - to_remove_position_ + offset);
+    }
+
   private:
 
     void maybe_skip() {
@@ -246,6 +275,10 @@ public:
     return cend();
   }
 
+  inline size_t size() const {
+    return std::size(*container_) - std::size(to_remove_);
+  }
+
 private:
   const T* container_;
   const std::list<size_t> to_remove_;
@@ -262,30 +295,32 @@ bool operator==(const OutputContainer<T> self, const Container& other) {
   return true;
 }
 
-
-
-// template <typename T>
-// OutputContainer<T> prune_uniform_naiive(const T& input, size_t output_size) {
-//   static_assert(std::is_same<T::value_type, size_t>::value, "Container element type must be size_t.");
-//   size_t length = std::size(input);
-//   std::list<size_t> best_combination;
-//   unsigned int best_score = std::numeric_limits<unsigned int>::max;
-//   for (const std::list<size_t>& combination : internal::Combinations(length - 2, output_size)) {
-//     // NOTE: We can't remove the first or the last, so we get combinations on
-//     // the range [0, length - 2) and then add 1 to get the proper index range:
-//     // [1, length - 1).
-//     const std::list<size_t> to_remove;
-//     std::transform(combination.cbegin(), combination.cend(),
-//         std::back_inserter(to_remove),
-//         [] (size_t i) -> size_t { return i + 1; });
-//     unsigned int score = internal::score(OutputContainer<T>(&input, to_remove, length), length);
-//     if (score < best_score) {
-//       best_score = score;
-//       best_combination = to_remove;
-//     }
-//   }
-//   return OutputContainer<T>(&input, best_combination, length);
-// }
+template <typename T>
+OutputContainer<T>
+prune_uniform_exhaustive(const T& input, size_t output_size) {
+  static_assert(std::is_same<typename T::value_type, float>::value, "Container element type must be size_t.");
+  size_t length = std::size(input);
+  std::list<size_t> best_combination;
+  float best_score = std::numeric_limits<float>::max();
+  for (const std::list<size_t>& combination : internal::Combinations(length - 2, length - output_size)) {
+    // NOTE: We can't remove the first or the last, so we get combinations on
+    // the range [0, length - 2) and then add 1 to get the proper index range:
+    // [1, length - 1).
+    std::list<size_t> to_remove;
+    // TODO: Could use a transforming iterator that does this progressively
+    // instead of storing it all in memory.
+    std::transform(combination.cbegin(), combination.cend(),
+        std::back_inserter(to_remove),
+        [] (size_t i) -> size_t { return i + 1; });
+    auto candidate = OutputContainer<T>(&input, to_remove);
+    float score = internal::score(candidate);
+    if (score < best_score) {
+      best_score = score;
+      best_combination = to_remove;
+    }
+  }
+  return OutputContainer<T>(&input, best_combination);
+}
 
 // template <typename T>
 // OutputContainer<T> prune_uniform_analytic(const T& input, size_t output_size) {
@@ -294,3 +329,10 @@ bool operator==(const OutputContainer<T> self, const Container& other) {
 
 } // end namespace uniform_distribution.
 } // end namespace gnossen.
+
+namespace std {
+  template <typename T>
+  size_t size(const gnossen::uniform_distribution::OutputContainer<T>& container) {
+    return container.size();
+  }
+}
